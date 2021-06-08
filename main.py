@@ -195,31 +195,3 @@ def summary(*statements):
         r3 = str(statements[index])
         row = r1 + (idlen - len(r1)) * ' ' + r2 + (vallen - len(r2)) * ' ' + r3 + (ellen - len(r3)) * ' '
         print(row)
-
-switch = True
-
-""" # IncoherenceError demonstration:
-
-p = Proposition('rains')
-q = Proposition('coat')
-r = Proposition('umbrella')
-
-s1 = Symbol(p, verbose = switch)
-s2 = Not(q, verbose = switch)
-s3 = Implicative(p, And(q, r, verbose = switch))
-
-"""
-
-""" # Valid demonstration:
-
-p = Proposition('rains')
-q = Proposition('home')
-r = Proposition('cafe')
-
-s1 = Symbol(p, verbose = switch)
-s2 = Not(q, verbose = switch)
-s3 = Implicative(p, Or(q, r, verbose = switch), verbose = switch)
-
-"""
-
-summary(p, q, r, s1, s2, s3)

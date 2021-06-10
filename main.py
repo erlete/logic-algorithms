@@ -1,210 +1,449 @@
-class IncoherenceError:
-    def __init__(self, conflict, container):
-        self.Message = 'IncoherenceError: cannot define values for'
-        self.Container = container
-        self.Conflict = conflict
-
-    def formatter(self, items):
-        return f"""'{", '".join([str(item) + "'" for item in items])}"""
-
-    def __repr__(self):
-        return f"""{self.Message} {self.formatter(self.Conflict)} through {self.formatter(self.Container)} due to logical rules' contradiction.\n"""
-    
 class Proposition:
-    def __init__(self, name):
-        self.Name = name
+    """Contains basic data for propositions."""
+    def __init__(self, description: str):
+        self.Description = description
         self.Value = 'Undefined'
 
-    def setValue(self, value):
-        self.Value = value if self.Value == 'Undefined' else self.Value
-
-    def getValue(self):
-        try:
-            return self.Value
-        except AttributeError:
-            return 'Undefined'
-
     def __repr__(self):
-        return f'{self.Name}'
+        return f'{self.Description}'
 
-class Symbol(Proposition):
-    def __init__(self, proposition, verbose = False):
+    def setSelfValue(self, value):
+        """Sets the object's value."""
+        self.Value = value
+
+    def getSelfValue(self):
+        """Returns the object's value."""
+        return self.Value
+
+# Main connective class:
+
+class Connective:
+    """Defines standard operational behavior for all connectives.
+
+    The structure of each class matches the following pattern:
+
+        1. Proposition and verbose definition.
+        2. Symbol definition.
+        3. Relations structure definition and evaluation.
+
+    Connectives' values must be 'True' by default due to the fact that they are
+    used to define propositions' values, and therefore require a boolean
+    evaluation instead of an 'Undefined' statement.
+    """
+    def __init__(self, verbose: bool = False):
         self.Symbol = ''
-        self.Propositions = (proposition,)
+        self.Value = True
         self.Verbose = verbose
 
-        self.Value = True
-        if self.undefinedPropositionValue():
-            self.Structure = {
-                self.Value == True: (True,)
-            }
-            self.setPropositionValue()
-        else:
-            self.Structure = {
-                self.Propositions[0].getValue() == True: True,
-                self.Propositions[0].getValue() == False: False
-            }
-            self.setConnectiveValue()
+    def setSelfValue(self, value):
+        """Sets the object's value."""
+        self.Value = value
 
-    def setPropositionValue(self):
-        try:
-            for index in range(len(self.Propositions)):
-                if self.Propositions[index].getValue() != self.Structure[True][index]:
-                    old = self.Propositions[index].getValue()
-                    self.Propositions[index].setValue(self.Structure[True][index])
-                    if self.Verbose:
-                        print(f' Proposition [{self.Propositions[index]}] '.center(80, '-') + '\n')
-                        print(f'Changed value for proposition:\t{self.Propositions[index]}')
-                        print(f'due to statements(s):'.rjust(30) + f'\t{self.__repr__()}\n')
-                        print(f'Previous value:\t{old}')
-                        print(f'New value:\t{self.Propositions[index].getValue()}\n')
-        except KeyError:
-            print(IncoherenceError(self.Propositions, [self.__repr__()]))
+    def getSelfValue(self):
+        """Returns the object's value."""
+        return self.Value
 
-    def setConnectiveValue(self):
-        try:
-            if self.getValue() != self.Structure[True]:
-                old = self.getValue()
-                self.Value = self.Structure[True]
-                if self.Verbose:
-                    print(f' Connective [{self.__repr__()}] '.center(80, '-') + '\n')
-                    print(f'Changed value for connective:\t{self.__repr__()}') 
-                    print(f'due to statement(s):'.rjust(29) + f'\t{str(self.Propositions)[1:-1]}\n')
-                    print(f'Previous value:\t{old}')
-                    print(f'New value:\t{self.getValue()}\n')
-        except KeyError:
-            print(IncoherenceError([self.__repr__()], self.Propositions))
+# Main connective class subdivisions:
 
-    def undefinedPropositionValue(self):
-        return True if 'Undefined' in [proposition.getValue() for proposition in self.Propositions] else False
+class UnaryConnective(Connective):
+    """Defines specific behavior for single proposition connectives."""
+    def __init__(self, proposition, verbose: bool = False):
+        super().__init__(verbose)
+        self.Proposition = proposition
+        
+    def __repr__(self):
+        return f'[{self.Symbol}{self.Proposition}]'
+
+    def setPropValue(self, value):
+        """Sets the object's proposition value."""
+        self.Proposition.setSelfValue(value)
+
+    def setValues(self, values):
+        """Call for both value setters of the given object."""
+        self.setSelfValue(values[0])
+        self.setPropValue(values[1])
+
+    def getPropValue(self):
+        """Returns the object's proposition value."""
+        return self.Proposition.getSelfValue()
+
+    def check(self):
+        """Checks for 'Undefined' values inside of the connective."""
+        if 'Undefined' in [self.getSelfValue(), self.getPropValue()]:
+            print(f"[Logic] Warning: '{self.__repr__()}' with value {self.getSelfValue()} and propositions ('{self.Proposition}', {self.getPropValue()}) has undefined values.")
+
+class BinaryConnective(Connective):
+    """Defines specific behavior for double proposition connectives."""
+    def __init__(self, proposition_1: Proposition, proposition_2: Proposition, verbose: bool = False):
+        super().__init__(verbose)
+        self.Propositions = (proposition_1, proposition_2)
 
     def __repr__(self):
-        return f'({self.Symbol}{str(self.Propositions)[1:-2]})'
+        return f'[{self.Propositions[0]} {self.Symbol} {self.Propositions[1]}]'
 
-class Not(Symbol):
-    def __init__(self, proposition, verbose = False):
+    def setPropValue(self, values):
+        """Sets the object's propositions' values."""
+        for index in range(len(self.Propositions)):
+            self.Propositions[index].setSelfValue(values[index])
+
+    def setValues(self, values):
+        """Call for both value setters of the given object."""
+        self.setSelfValue(values[0])
+        self.setPropValue(values[1])
+
+    def getPropValue(self):
+        """Returns the object's propositions' values."""
+        return (self.Propositions[0].getSelfValue(), self.Propositions[1].getSelfValue())
+
+    def check(self):
+        """Checks for 'Undefined' values inside of the connective."""
+        if 'Undefined' == self.getSelfValue() or 'Undefined' in self.getPropValue():
+            undefined = []
+            for index in range(len(self.getPropValue())):
+                undefined.append(self.Propositions[index]) if self.getPropValue()[index] == 'Undefined' else None
+            print(f"Warning: '{self.__repr__()}' ({self.getSelfValue()}) has undefined values in proposition(s): {undefined[0] if len(undefined) == 1 else str(tuple(undefined))[1:-1]}.")
+
+# Unary connectives:
+
+class Yes(UnaryConnective):
+    """Truthy unary connective.
+
+    If True, sets the value of the passed proposition to True, else inverts it.
+
+    This connective is required as inverse of the 'Not' one.
+    """
+    def __init__(self, proposition, verbose: bool = False):
+        super().__init__(proposition, verbose)
+
+        self.Structure = {
+
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, True):                 (True, True),
+            (self.getSelfValue(), self.getPropValue()) == (True, False):                (True, False),
+            (self.getSelfValue(), self.getPropValue()) == (True, 'Undefined'):          (True, True),   # Class-Specific Case 1
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (False, True):                (False, False),
+            (self.getSelfValue(), self.getPropValue()) == (False, False):               (False, True),
+            (self.getSelfValue(), self.getPropValue()) == (False, 'Undefined'):         (False, False), # Class-Specific Case 2
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', True):          (True, True),   # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', False):         (False, False), # Special Case 2
+
+            # Standard 'else'
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', 'Undefined'):   ('Undefined', 'Undefined')
+        }
+        self.setValues(self.Structure[True])
+        self.check()
+
+class Not(UnaryConnective):
+    """Falsy unary connective.
+
+    If True, inverts the value of the passed proposition, else keeps it.
+    """
+    def __init__(self, proposition, verbose: bool = False):
+        super().__init__(proposition, verbose)
         self.Symbol = '¬'
-        self.Propositions = (proposition,)
-        self.Verbose = verbose
 
-        self.Value = True
-        if self.undefinedPropositionValue():
-            self.Structure = {
-                self.Value == True: (False,)
-            }
-            self.setPropositionValue()
-        else:
-            self.Structure = {
-                self.Proposition[0].getValue() == True: (False,),
-                self.Proposition[0].getValue() == False: (True,)
-            }
-            self.setConnectiveValue()
+        self.Structure = {
 
-class And(Symbol):
-    def __init__(self, proposition_1, proposition_2, verbose = False):
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, True):                 (True, False),
+            (self.getSelfValue(), self.getPropValue()) == (True, False):                (True, True),
+            (self.getSelfValue(), self.getPropValue()) == (True, 'Undefined'):          (True, False),  # Class-Specific Case 1
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (False, True):                (False, True),
+            (self.getSelfValue(), self.getPropValue()) == (False, False):               (False, False),
+            (self.getSelfValue(), self.getPropValue()) == (False, 'Undefined'):         (False, True),  # Class-Specific Case 2
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', True):          (False, True),  # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', False):         (True, False),  # Special Case 2
+
+            # Standard 'else'
+            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', 'Undefined'):   ('Undefined', 'Undefined')
+        }
+        self.setValues(self.Structure[True])
+        self.check()
+        
+# Binary connectives:
+
+class And(BinaryConnective):
+    """And binary connective.
+
+    Combines two elements and returns True if both of them are True.
+    """
+    def __init__(self, proposition_1, proposition_2, verbose: bool = False):
+        super().__init__(proposition_1, proposition_2, verbose)
+        self.Propositions = (proposition_1, proposition_2)
         self.Symbol = '^'
-        self.Propositions = (proposition_1, proposition_2)
-        self.Verbose = verbose
 
-        self.Value = True
-        if self.undefinedPropositionValue():
-            self.Structure = {
-                (self.getValue(), self.Propositions[0].getValue()) == (True, True): (True, True),
-                (self.getValue(), self.Propositions[1].getValue()) == (True, True): (True, True)
-            }
-            self.setPropositionValue()
-        else:
-            self.Structure = {
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, True): True,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, False): False,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, True): False,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, False): False
-            }
-            self.setConnectiveValue()
+        self.Structure = {
 
-    def __repr__(self):
-        return f'({self.Propositions[0]} {self.Symbol} {self.Propositions[1]})'
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, True)):                         (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, False)):                        (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, True)):                        (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, False)):                       (False, (False, False)),
 
-class Or(And):
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, True)):                        (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, False)):                       (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, True)):                       (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, False)):                      (False, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, False)):                 (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, True)):                 (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, False)):                (False, (False, False)),
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, 'Undefined')):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, 'Undefined')):                 (False, (False, 'Undefined')),          # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', False)):                 (False, ('Undefined', False)),          # Special Case 2
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, 'Undefined')):                 (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, 'Undefined')):                (False, (False, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', True)):                 (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', False)):                (False, (False, False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, 'Undefined')):           ('Undefined', (True, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, 'Undefined')):          (False, (False, 'Undefined')),          # Special Case 3
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', True)):           ('Undefined', ('Undefined', True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', False)):          (False, ('Undefined', False)),          # Special Case 4
+
+            # Standard 'else':
+
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', 'Undefined')):           (True, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', 'Undefined')):          (False, ('Undefined', 'Undefined')),            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
+        }
+        self.setValues(self.Structure[True])
+        self.check()
+
+class Or(BinaryConnective):
+    """Or binary connective.
+
+    Combines two elements and returns True if at least one of them is True.
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
+        super().__init__(proposition_1, proposition_2, verbose)
         self.Symbol = 'v'
-        self.Propositions = (proposition_1, proposition_2)
-        self.Verbose = verbose
 
-        self.Value = True
-        if self.undefinedPropositionValue():
-            self.Structure = {
-                (self.getValue(), self.Propositions[0].getValue()) == (True, True): (True, False),
-                (self.getValue(), self.Propositions[0].getValue()) == (True, False): (False, True),
-                (self.getValue(), self.Propositions[1].getValue()) == (True, True): (False, True),
-                (self.getValue(), self.Propositions[1].getValue()) == (True, False): (True, False)
-            }
-            self.setPropositionValue()
-        else:
-            self.Structure = {
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, True): False,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, False): True,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, True): True,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, False): False
-            }
-            self.setConnectiveValue()
+        self.Structure = {
 
-class Implicative(And):
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, True)):                         (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, False)):                        (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, True)):                        (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, False)):                       (False, (False, False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, True)):                        (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, False)):                       (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, True)):                       (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, False)):                      (False, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, False)):                 (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, True)):                 (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, False)):                (False, (False, False)),
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, 'Undefined')):                  (True, (True, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, 'Undefined')):                 (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', True)):                  (True, ('Undefined', True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', False)):                 (True, (True, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, 'Undefined')):                 (True, (True, 'Undefined')),            # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, 'Undefined')):                (False, (False, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', True)):                 (True, ('Undefined', True)),            # Special Case 2
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', False)):                (False, ('Undefined', False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', True)):           (True, ('Undefined', True)),            # Special Case 3
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', False)):          ('Undefined', ('Undefined', False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, 'Undefined')):           (True, (True, 'Undefined')),            # Special Case 4
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, 'Undefined')):          ('Undefined', (False, 'Undefined')),
+
+            # Standard 'else':
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', 'Undefined')):           (True, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', 'Undefined')):          (False, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
+        }
+        self.setValues(self.Structure[True])
+        self.check()
+
+class XOr(BinaryConnective):
+    """XOr binary connective.
+
+    Combines two elements and returns True if only one of them is True.
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
+        super().__init__(proposition_1, proposition_2, verbose)
+        self.Symbol = 'xv'
+
+        self.Structure = {
+
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, True)):                         (False, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, False)):                        (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, True)):                        (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, False)):                       (False, (False, False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, True)):                        (False, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, False)):                       (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, True)):                       (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, False)):                      (False, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, True)):                  (False, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, False)):                 (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, True)):                 (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, False)):                (False, (False, False)),
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, 'Undefined')):                  (True, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, 'Undefined')):                 (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', True)):                  (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', False)):                 (True, (True, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, 'Undefined')):                 (False, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, 'Undefined')):                (False, (False, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', True)):                 (False, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', False)):                (False, (False, False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', True)):           ('Undefined', ('Undefined', True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', False)):          ('Undefined', ('Undefined', False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, 'Undefined')):           ('Undefined', (True, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, 'Undefined')):          ('Undefined', (False, 'Undefined')),
+
+            # Standard 'else':
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', 'Undefined')):           (True, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', 'Undefined')):          (False, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
+        }
+        self.setValues(self.Structure[True])
+        self.check()
+
+class Implicative(BinaryConnective):
+    """Implicative binary connective.
+
+    Combines two elements and returns True unless the first one is True and the
+    second one is False.
+    """
+    def __init__(self, proposition_1, proposition_2, verbose = False):
+        super().__init__(proposition_1, proposition_2, verbose)
+        self.Propositions = (proposition_1, proposition_2)
         self.Symbol = '⟶'
-        self.Propositions = (proposition_1, proposition_2)
-        self.Verbose = verbose
 
-        self.Value = True
-        if self.undefinedPropositionValue():
-            self.Structure = {
-                (self.getValue(), self.Propositions[0].getValue()) == (True, True): (True, True),
-                (self.getValue(), self.Propositions[0].getValue()) == (True, False): (False, 'Undefined'),
-                (self.getValue(), self.Propositions[1].getValue()) == (True, True): ('Undefined', True),
-                (self.getValue(), self.Propositions[1].getValue()) == (True, False): (False, False)
-            }
-            self.setPropositionValue()
-        else:
-            self.Structure = {
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, True): True,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, False): False,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, True): True,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, False): True
-            }
-            self.setConnectiveValue()
+        self.Structure = {
 
-class BiImplicative(And):
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, True)):                         (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, False)):                        (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, True)):                        (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, False)):                       (True, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, True)):                        (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, False)):                       (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, True)):                       (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, False)):                      (True, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, False)):                 (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, True)):                 (True, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, False)):                (True, (False, False)),
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, 'Undefined')):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, 'Undefined')):                 (True, (False, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', False)):                 ('Undefined', ('Undefined', False)),    # Special Case 1
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, 'Undefined')):                 (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, 'Undefined')):                (True, (False, 'Undefined')),           # Special Case 2
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', True)):                 (True, ('Undefined', True)),            # Special Case 3
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', False)):                (False, (True, False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, 'Undefined')):           ('Undefined', (True, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, 'Undefined')):          (True, (False, 'Undefined')),           # Special Case 4
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', True)):           ('Undefined', ('Undefined', True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', False)):          (False, ('Undefined', False)),          # Special Case 5
+
+            # Standard 'else':
+
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', 'Undefined')):           (True, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', 'Undefined')):          (False, ('Undefined', 'Undefined')),            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
+        }
+        self.setValues(self.Structure[True])
+        self.check()
+
+class BiImplicative(BinaryConnective):
+    """Bi-implicative binary connective.
+
+    Combines two elements and returns True only if both elements have the same
+    value (either True or False).
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
+        super().__init__(proposition_1, proposition_2, verbose)
         self.Symbol = '⟷'
-        self.Propositions = (proposition_1, proposition_2)
-        self.Verbose = verbose
 
-        self.Value = True
-        if self.undefinedPropositionValue():
-            self.Structure = {
-                (self.getValue(), self.Propositions[0].getValue()) == (True, True): (True, True),
-                (self.getValue(), self.Propositions[1].getValue()) == (True, False): (False, False)
-            }
-            self.setPropositionValue()
-        else:
-            self.Structure = {
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, True): True,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (True, False): False,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, True): False,
-                (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, False): True
-            }
-            self.setConnectiveValue()
+        self.Structure = {
 
-def summary(*statements):
-    t1, t2, t3 = 'ID:', 'Value:', 'Element:'
-    idlen, vallen, ellen = 5, 15, 60
-    title = t1 + (idlen - len(t1)) * ' ' + t2 + (vallen - len(t2)) * ' ' + t3 + (ellen - len(t3)) * ' '
-    print('-' * 80)
-    print(title)
-    print('-' * 80)
-    for index in range(len(statements)):
-        r1 = str(index)
-        r2 = str(statements[index].getValue())
-        r3 = str(statements[index])
-        row = r1 + (idlen - len(r1)) * ' ' + r2 + (vallen - len(r2)) * ' ' + r3 + (ellen - len(r3)) * ' '
-        print(row)
+            # Connective value definition:
+            
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, True)):                         (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, False)):                        (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, True)):                        (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, False)):                       (True, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, True)):                        (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, False)):                       (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, True)):                       (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, False)):                      (True, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, False)):                 (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, True)):                 (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, False)):                (True, (False, False)),
+
+            # Proposition value definition:
+
+            (self.getSelfValue(), self.getPropValue()) == (True, (True, 'Undefined')):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, (False, 'Undefined')):                 (True, (False, False)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', True)):                  (True, (True, True)),
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', False)):                 (True, (False, False)),
+
+            (self.getSelfValue(), self.getPropValue()) == (False, (True, 'Undefined')):                 (False, (True, False)),
+            (self.getSelfValue(), self.getPropValue()) == (False, (False, 'Undefined')):                (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', True)):                 (False, (False, True)),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', False)):                (False, (True, False)),
+            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (True, 'Undefined')):           ('Undefined', (True, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', (False, 'Undefined')):          ('Undefined', (False, 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', True)):           ('Undefined', ('Undefined', True)),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', False)):          ('Undefined', ('Undefined', False)),
+
+            # Standard 'else':
+
+            (self.getSelfValue(), self.getPropValue()) == (True, ('Undefined', 'Undefined')):           (True, ('Undefined', 'Undefined')),
+            (self.getSelfValue(), self.getPropValue()) == (False, ('Undefined', 'Undefined')):          (False, ('Undefined', 'Undefined')),            
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
+        }
+        self.setValues(self.Structure[True])
+        self.check()

@@ -7,7 +7,7 @@ def summary(*statements, info: str = ''):
     print(f"{'+' * 80}\n{title.center(80)}\n{'+' * 80}")
     for element in statements:
         print(f"Value: {(str(element.getSelfValue()) + ' ').ljust(12, '-')} " + f"for element {element}")
-    print('+' * 80 + '\n')
+    print(f"{'+' * 80}\n")
 
 # Test area:
 
@@ -50,3 +50,19 @@ s5 = Implicative(p, q, verbose = switch)
 s6 = BiImplicative(p, q, verbose = switch)
 
 summary(p, q, s1, s2, s3, s4, s5, s6, info = 'test 3')
+
+# Test 4: XOr vs Or testing
+
+p = Proposition('p')
+q = Proposition('q')
+r = Proposition('r')
+
+s1 = Yes(p)
+s2 = Not(q)
+s3 = Yes(r)
+s4 = Or(p, q)
+s5 = XOr(p, q)
+s6 = Or(p, r)
+s7 = XOr(p, r)
+
+summary(p, q, s1, s2, s3, s4, s5, s6, s7, info = 'test 4')

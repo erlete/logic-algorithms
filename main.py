@@ -1,10 +1,3 @@
-# Annotation 1: connectives and propositions are, originally, dynamic elements,
-#   since their values can be mutated on declaration, yet from that point they
-#   are static, since they have a defined value unless re-evaluated.
-
-# Annotation 2: do propositions and connectives have equal value relations?
-#   (does one have preference over the other or not?)
-
 class Proposition:
     """Contains basic data for propositions."""
     def __init__(self, description: str):
@@ -13,23 +6,19 @@ class Proposition:
 
     def __repr__(self):
         return f'{self.Description}'
-    
-    # Setter and getter methods:
-
-    def getSelfValue(self):
-        return self.Value
 
     def setSelfValue(self, value):
+        """Sets the object's value."""
         self.Value = value
+
+    def getSelfValue(self):
+        """Returns the object's value."""
+        return self.Value
 
 # Main connective class:
 
 class Connective:
     """Defines standard operational behavior for all connectives.
-
-    Connectives' values must be 'True' by default due to the fact that they are
-    used to define propositions' values, and therefore require a boolean
-    evaluation instead of an 'Undefined' statement.
 
     The structure of each class matches the following pattern:
 
@@ -37,19 +26,22 @@ class Connective:
         2. Symbol definition.
         3. Relations structure definition and evaluation.
 
+    Connectives' values must be 'True' by default due to the fact that they are
+    used to define propositions' values, and therefore require a boolean
+    evaluation instead of an 'Undefined' statement.
     """
     def __init__(self, verbose: bool = False):
         self.Symbol = ''
         self.Value = True
         self.Verbose = verbose
 
-    # Setter and getter methods:
+    def setSelfValue(self, value):
+        """Sets the object's value."""
+        self.Value = value
 
     def getSelfValue(self):
+        """Returns the object's value."""
         return self.Value
-
-    def setSelfValue(self, value):
-        self.Value = value
 
 # Main connective class subdivisions:
 
@@ -60,23 +52,23 @@ class UnaryConnective(Connective):
         self.Proposition = proposition
         
     def __repr__(self):
-        return f'{self.Symbol}{self.Proposition}'
-    
-    # Setter and getter methods:
-
-    def getPropValue(self):
-        return self.Proposition.getSelfValue()
+        return f'[{self.Symbol}{self.Proposition}]'
 
     def setPropValue(self, value):
+        """Sets the object's proposition value."""
         self.Proposition.setSelfValue(value)
 
     def setValues(self, values):
+        """Call for both value setters of the given object."""
         self.setSelfValue(values[0])
         self.setPropValue(values[1])
 
-    # Incoherence check:
+    def getPropValue(self):
+        """Returns the object's proposition value."""
+        return self.Proposition.getSelfValue()
 
     def check(self):
+        """Checks for 'Undefined' values inside of the connective."""
         if 'Undefined' in [self.getSelfValue(), self.getPropValue()]:
             print(f"[Logic] Warning: '{self.__repr__()}' with value {self.getSelfValue()} and propositions ('{self.Proposition}', {self.getPropValue()}) has undefined values.")
 
@@ -87,24 +79,24 @@ class BinaryConnective(Connective):
         self.Propositions = (proposition_1, proposition_2)
 
     def __repr__(self):
-        return f'{self.Propositions[0]} {self.Symbol} {self.Propositions[1]}'
-
-    # Setter and getter methods:
-
-    def getPropValue(self):
-        return (self.Propositions[0].getSelfValue(), self.Propositions[1].getSelfValue())
+        return f'[{self.Propositions[0]} {self.Symbol} {self.Propositions[1]}]'
 
     def setPropValue(self, values):
+        """Sets the object's propositions' values."""
         for index in range(len(self.Propositions)):
             self.Propositions[index].setSelfValue(values[index])
 
     def setValues(self, values):
+        """Call for both value setters of the given object."""
         self.setSelfValue(values[0])
         self.setPropValue(values[1])
 
-    # Incoherence check:
+    def getPropValue(self):
+        """Returns the object's propositions' values."""
+        return (self.Propositions[0].getSelfValue(), self.Propositions[1].getSelfValue())
 
     def check(self):
+        """Checks for 'Undefined' values inside of the connective."""
         if 'Undefined' == self.getSelfValue() or 'Undefined' in self.getPropValue():
             undefined = []
             for index in range(len(self.getPropValue())):
@@ -114,41 +106,67 @@ class BinaryConnective(Connective):
 # Unary connectives:
 
 class Yes(UnaryConnective):
+    """Truthy unary connective.
+
+    If True, sets the value of the passed proposition to True, else inverts it.
+
+    This connective is required as inverse of the 'Not' one.
+    """
     def __init__(self, proposition, verbose: bool = False):
         super().__init__(proposition, verbose)
 
         self.Structure = {
+
+            # Connective value definition:
+            
             (self.getSelfValue(), self.getPropValue()) == (True, True):                 (True, True),
             (self.getSelfValue(), self.getPropValue()) == (True, False):                (True, False),
-            (self.getSelfValue(), self.getPropValue()) == (True, 'Undefined'):          (True, True),       # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == (True, 'Undefined'):          (True, True),   # Class-Specific Case 1
+
+            # Proposition value definition:
 
             (self.getSelfValue(), self.getPropValue()) == (False, True):                (False, False),
             (self.getSelfValue(), self.getPropValue()) == (False, False):               (False, True),
-            (self.getSelfValue(), self.getPropValue()) == (False, 'Undefined'):         (False, False),     # Special Case 2
+            (self.getSelfValue(), self.getPropValue()) == (False, 'Undefined'):         (False, False), # Class-Specific Case 2
 
-            (self.getSelfValue(), self.getPropValue()) == ('Undefined', True):          (True, True),
-            (self.getSelfValue(), self.getPropValue()) == ('Undefined', False):         (False, False),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', True):          (True, True),   # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', False):         (False, False), # Special Case 2
+
+            # Standard 'else'
+
             (self.getSelfValue(), self.getPropValue()) == ('Undefined', 'Undefined'):   ('Undefined', 'Undefined')
         }
         self.setValues(self.Structure[True])
         self.check()
 
 class Not(UnaryConnective):
+    """Falsy unary connective.
+
+    If True, inverts the value of the passed proposition, else keeps it.
+    """
     def __init__(self, proposition, verbose: bool = False):
         super().__init__(proposition, verbose)
         self.Symbol = '¬'
 
         self.Structure = {
+
+            # Connective value definition:
+            
             (self.getSelfValue(), self.getPropValue()) == (True, True):                 (True, False),
             (self.getSelfValue(), self.getPropValue()) == (True, False):                (True, True),
-            (self.getSelfValue(), self.getPropValue()) == (True, 'Undefined'):          (True, False),      # Special Case 3
+            (self.getSelfValue(), self.getPropValue()) == (True, 'Undefined'):          (True, False),  # Class-Specific Case 1
+
+            # Proposition value definition:
 
             (self.getSelfValue(), self.getPropValue()) == (False, True):                (False, True),
             (self.getSelfValue(), self.getPropValue()) == (False, False):               (False, False),
-            (self.getSelfValue(), self.getPropValue()) == (False, 'Undefined'):         (False, True),      # Special Case 4
+            (self.getSelfValue(), self.getPropValue()) == (False, 'Undefined'):         (False, True),  # Class-Specific Case 2
 
-            (self.getSelfValue(), self.getPropValue()) == ('Undefined', True):          (False, True),
-            (self.getSelfValue(), self.getPropValue()) == ('Undefined', False):         (True, False),
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', True):          (False, True),  # Special Case 1
+            (self.getSelfValue(), self.getPropValue()) == ('Undefined', False):         (True, False),  # Special Case 2
+
+            # Standard 'else'
+            
             (self.getSelfValue(), self.getPropValue()) == ('Undefined', 'Undefined'):   ('Undefined', 'Undefined')
         }
         self.setValues(self.Structure[True])
@@ -157,6 +175,10 @@ class Not(UnaryConnective):
 # Binary connectives:
 
 class And(BinaryConnective):
+    """And binary connective.
+
+    Combines two elements and returns True if both of them are True.
+    """
     def __init__(self, proposition_1, proposition_2, verbose: bool = False):
         super().__init__(proposition_1, proposition_2, verbose)
         self.Propositions = (proposition_1, proposition_2)
@@ -208,6 +230,10 @@ class And(BinaryConnective):
         self.check()
 
 class Or(BinaryConnective):
+    """Or binary connective.
+
+    Combines two elements and returns True if at least one of them is True.
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
         super().__init__(proposition_1, proposition_2, verbose)
         self.Symbol = 'v'
@@ -258,6 +284,10 @@ class Or(BinaryConnective):
         self.check()
 
 class XOr(BinaryConnective):
+    """XOr binary connective.
+
+    Combines two elements and returns True if only one of them is True.
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
         super().__init__(proposition_1, proposition_2, verbose)
         self.Symbol = 'xv'
@@ -305,8 +335,14 @@ class XOr(BinaryConnective):
             (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
         }
         self.setValues(self.Structure[True])
+        self.check()
 
 class Implicative(BinaryConnective):
+    """Implicative binary connective.
+
+    Combines two elements and returns True unless the first one is True and the
+    second one is False.
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
         super().__init__(proposition_1, proposition_2, verbose)
         self.Propositions = (proposition_1, proposition_2)
@@ -355,8 +391,14 @@ class Implicative(BinaryConnective):
             (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
         }
         self.setValues(self.Structure[True])
+        self.check()
 
-class BiImplicative(And):
+class BiImplicative(BinaryConnective):
+    """Bi-implicative binary connective.
+
+    Combines two elements and returns True only if both elements have the same
+    value (either True or False).
+    """
     def __init__(self, proposition_1, proposition_2, verbose = False):
         super().__init__(proposition_1, proposition_2, verbose)
         self.Symbol = '⟷'
@@ -404,3 +446,4 @@ class BiImplicative(And):
             (self.getSelfValue(), self.getPropValue()) == ('Undefined', ('Undefined', 'Undefined')):    ('Undefined', ('Undefined', 'Undefined'))
         }
         self.setValues(self.Structure[True])
+        self.check()

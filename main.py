@@ -1,3 +1,15 @@
+class IncoherenceError:
+    def __init__(self, conflict, container):
+        self.Message = 'IncoherenceError: cannot define values for'
+        self.Container = container
+        self.Conflict = conflict
+
+    def formatter(self, items):
+        return f"""'{", '".join([str(item) + "'" for item in items])}"""
+
+    def __repr__(self):
+        return f"""{self.Message} {self.formatter(self.Conflict)} through {self.formatter(self.Container)} due to logical rules' contradiction.\n"""
+    
 class Proposition:
     def __init__(self, name):
         self.Name = name
@@ -29,35 +41,39 @@ class Symbol(Proposition):
             self.setPropositionValue()
         else:
             self.Structure = {
-                self.Proposition[0].getValue() == True: True,
-                self.Proposition[0].getValue() == False: False
+                self.Propositions[0].getValue() == True: True,
+                self.Propositions[0].getValue() == False: False
             }
             self.setConnectiveValue()
 
     def setPropositionValue(self):
-        for index in range(len(self.Propositions)):
-            if self.Verbose:
-                print(f' Proposition [{self.Propositions[index]}] '.center(80, '-') + '\n')
-                print(f'Changed value for proposition:\t{self.Propositions[index]}')
-                print(f'due to connective(s):'.rjust(30) + f'\t{self.__repr__()}\n')
-                print(f'Previous value:\t{self.Propositions[index].getValue()}')
-            try:
-                self.Propositions[index].setValue(self.Structure[True][index])
-            except KeyError:
-                print(f'IncoherenceError: Undefined value for proposition {self.Propositions[index]}.')
-            print(f'New value:\t{self.Propositions[index].getValue()}\n') if self.Verbose else None
+        try:
+            for index in range(len(self.Propositions)):
+                if self.Propositions[index].getValue() != self.Structure[True][index]:
+                    old = self.Propositions[index].getValue()
+                    self.Propositions[index].setValue(self.Structure[True][index])
+                    if self.Verbose:
+                        print(f' Proposition [{self.Propositions[index]}] '.center(80, '-') + '\n')
+                        print(f'Changed value for proposition:\t{self.Propositions[index]}')
+                        print(f'due to statements(s):'.rjust(30) + f'\t{self.__repr__()}\n')
+                        print(f'Previous value:\t{old}')
+                        print(f'New value:\t{self.Propositions[index].getValue()}\n')
+        except KeyError:
+            print(IncoherenceError(self.Propositions, [self.__repr__()]))
 
     def setConnectiveValue(self):
-        if self.Verbose:
-            print(f' Connective [{self.__repr__()}] '.center(80, '-') + '\n')
-            print(f'Changed value for connective:\t{self.__repr__()}') 
-            print(f'due to proposition(s):'.rjust(29) + f'\t{self.Propositions}\n')
-            print(f'Previous value:\t{self.getValue()}')
         try:
-            self.Value = self.Structure[True]
+            if self.getValue() != self.Structure[True]:
+                old = self.getValue()
+                self.Value = self.Structure[True]
+                if self.Verbose:
+                    print(f' Connective [{self.__repr__()}] '.center(80, '-') + '\n')
+                    print(f'Changed value for connective:\t{self.__repr__()}') 
+                    print(f'due to statement(s):'.rjust(29) + f'\t{str(self.Propositions)[1:-1]}\n')
+                    print(f'Previous value:\t{old}')
+                    print(f'New value:\t{self.getValue()}\n')
         except KeyError:
-            raise IncoherenceError()
-        print(f'New value:\t{self.getValue()}\n') if self.Verbose else None
+            print(IncoherenceError([self.__repr__()], self.Propositions))
 
     def undefinedPropositionValue(self):
         return True if 'Undefined' in [proposition.getValue() for proposition in self.Propositions] else False
@@ -178,9 +194,6 @@ class BiImplicative(And):
                 (self.Propositions[0].getValue(), self.Propositions[1].getValue()) == (False, False): True
             }
             self.setConnectiveValue()
-
-def determine(statement):
-    return statement.getValue()
 
 def summary(*statements):
     t1, t2, t3 = 'ID:', 'Value:', 'Element:'
